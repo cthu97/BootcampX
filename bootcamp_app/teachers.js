@@ -7,17 +7,25 @@ const pool = new Pool ({
   database: 'bootcampx'
 });
 
-pool.query(`
-SELECT DISTINCT teachers.name as teacher, cohorts.name as cohort
-FROM teachers
-JOIN assistance_requests ON teacher_id = teachers.id
-JOIN students ON student_id = students.id
-JOIN cohorts ON cohort_id = cohorts.id
-WHERE cohorts.name = '${process.argv[2] || 'JUL02'}'
-ORDER BY teacher;
-`)
-.then(res => {
-  res.rows.forEach(row => {
-    console.log(`${row.cohort}: ${row.teacher}`);
-  })
-});
+const cohortName = process.argv[2];
+const values = [`%${cohortName}%`];
+
+const query = `
+SELECT teachers.name as teacher, cohorts.name as cohort
+FROM assistance_requests 
+JOIN students ON students.id = student_id 
+JOIN cohorts ON cohorts.id = cohort_id 
+JOIN teachers ON teachers.id = teacher_id
+WHERE cohorts.name LIKE $1
+GROUP BY teacher, cohort
+ORDER BY teacher;`
+
+pool.query(query, values)
+    .then(res => {
+      res.rows.forEach(row => {
+        console.log(`${row.cohort}: ${row.teacher}`);
+      });
+    })
+    .catch(err => {
+      console.log('query error', err.stack);
+    });
